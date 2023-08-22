@@ -6,8 +6,8 @@ const express = require("express");
 const cors = require("cors");
 const Pemesanan = require("./router/PemesananRoutes");
 const BestSellers = require("./router/BestSellers");
-const PemesananDetail = require("./model/pemesananDetailModel");
 const orderDetail = require("./model/orderDetailModel");
+const user = require("./model/userModel");
 const app = express();
 const port = 5000;
 
@@ -15,7 +15,7 @@ const port = 5000;
   try {
     await db.authenticate();
     console.log("Database connected");
-    await orderDetail.sync();
+    await user.sync();
   } catch (error) {
     console.log(error);
   }

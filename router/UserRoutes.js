@@ -7,7 +7,64 @@ const jsend = require("jsend");
 const router = express.Router();
 const { verifyToken } = require("../middleware/verifyToken");
 const { Op, Sequelize, literal, DATE } = require("sequelize");
+const nodemailer = require("nodemailer");
 require("dotenv").config();
+
+router.post("/admin/user/create", verifyToken, async (req, res) => {
+  const { nama, email, divisi, role } = req.body;
+
+  const secretKey = process.env.VERIFY_TOKEN_SECRET;
+
+  const verificationToken = jwt.sign({ email }, secretKey, { expiresIn: "1h" });
+
+  const verificationUrl = `http://localhost:3000/verification?token=${verificationToken}`;
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: "gunnarrr08@gmail.com",
+      pass: "qyuesnwhtreloggm",
+      // pass: "gunnar1234",
+    },
+  });
+
+  const mailOptions = {
+    from: "gunnarrr08@gmail.com",
+    to: email,
+    // to: "ouzymaulana@gmail.com",
+    subject: "Verify Your Email",
+    text: "Hello world?",
+    html: `<p>Click <a href="${verificationUrl}">here</a> to verify your email.</p>`,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ message: "Failed to send verification email" });
+    } else {
+      console.log("Email sent:", info.response);
+      res.json({ message: "Verification email sent successfully" });
+    }
+  });
+
+  const createUser = await User.create({
+    nama: nama,
+    email: email,
+    divisi: divisi,
+    role: role,
+  });
+
+  if (createUser) {
+    res.status(200).json(
+      jsend.success({
+        message: "successfully added new user",
+      })
+    );
+  }
+});
 
 router.get("/users", verifyToken, (req, res) => {
   try {
@@ -59,14 +116,6 @@ router.post("/login", (req, res) => {
               id: user.id,
               nama: user.nama,
               role: user.role,
-
-              // email,
-              // dataUser: {
-              //   saldo: user.saldo,
-              //   id: user.id,
-              //   nama: user.nama,
-              //   role: user.role,
-              // },
             },
             process.env.ACCESS_TOKEN_SECRET
           );
@@ -98,59 +147,118 @@ router.post("/login", (req, res) => {
 });
 
 router.patch("/users/verify", async (req, res) => {
-  const { confirmPassword, password, email } = req.body;
+  const { confirmPassword, password } = req.body;
+  const tokenVerify = req.headers.token;
 
+  const tokenVerifySecret = process.env.VERIFY_TOKEN_SECRET;
+  console.log("TOKEN : ", tokenVerify);
   try {
-    const user = await User.findOne({ where: { email } });
+    const tokenValue = jwt.verify(tokenVerify, tokenVerifySecret);
+    if (tokenValue) {
+      const email = tokenValue.email;
+      const user = await User.findOne({ where: { email } });
 
-    if (!user) {
-      return res.status(400).json(
-        jsend.fail({
-          message: "Email tidak ditemukan",
-        })
-      );
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json(
-        jsend.fail({
-          message: "password dan confirm password tidak sama",
-        })
-      );
-    }
-
-    bcrypt.hash(password, 10, function (err, hash) {
-      if (err) {
-        return res.status(500).json(
-          jsend.error({
-            message: "Internal server error",
+      if (!user) {
+        return res.status(400).json(
+          jsend.fail({
+            message: "Email tidak ditemukan",
           })
         );
       }
-      if (hash) {
-        user.update(
-          {
-            password: hash,
-          },
-          {
-            where: { email: email },
-          }
-        );
-        res.json(
-          jsend.success({
-            message: "berhasil verifikasi",
+
+      if (password !== confirmPassword) {
+        return res.status(400).json(
+          jsend.fail({
+            message: "password dan confirm password tidak sama",
           })
         );
       }
-    });
+
+      bcrypt.hash(password, 10, function (err, hash) {
+        if (err) {
+          return res.status(500).json(
+            jsend.error({
+              message: "Internal server error",
+            })
+          );
+        }
+        if (hash) {
+          user.update(
+            {
+              password: hash,
+              isVerified: 1,
+            },
+            {
+              where: { email: email },
+            }
+          );
+          res.json(
+            jsend.success({
+              message: "berhasil verifikasi",
+            })
+          );
+        }
+      });
+    }
   } catch (error) {
-    console.error(error);
-    res.status(500).json(
-      jsend.error({
-        message: "Internal server error",
-      })
-    );
+    console.error(error.message);
+    console.error(error.name);
+    // if (error.name === "TokenExpiredError") {
+    res.status(500).json({ message: "Terjadi kesalahan saat verifikasi." });
+    // }
   }
+
+  // try {
+  //   const user = await User.findOne({ where: { email } });
+
+  //   if (!user) {
+  //     return res.status(400).json(
+  //       jsend.fail({
+  //         message: "Email tidak ditemukan",
+  //       })
+  //     );
+  //   }
+
+  //   if (password !== confirmPassword) {
+  //     return res.status(400).json(
+  //       jsend.fail({
+  //         message: "password dan confirm password tidak sama",
+  //       })
+  //     );
+  //   }
+
+  //   bcrypt.hash(password, 10, function (err, hash) {
+  //     if (err) {
+  //       return res.status(500).json(
+  //         jsend.error({
+  //           message: "Internal server error",
+  //         })
+  //       );
+  //     }
+  //     if (hash) {
+  //       user.update(
+  //         {
+  //           password: hash,
+  //         },
+  //         {
+  //           where: { email: email },
+  //         }
+  //       );
+  //       res.json(
+  //         jsend.success({
+  //           message: "berhasil verifikasi",
+  //         })
+  //       );
+  //     }
+  //   });
+  // } catch (error) {
+  //   console.error(error);
+  //   res.status(500).json(
+  //     jsend.error({
+  //       message: "Internal server error",
+  //     })
+  //   );
+  // }
 });
 
 // router.patch("/user/change-password", verifyToken, async (req, res) => {
@@ -311,6 +419,7 @@ router.post("/admin/user/cashWithDrawwal", verifyToken, async (req, res) => {
             );
           }
         } else {
+          console.log("MASUKKK");
           res.json(
             jsend.fail({
               message: "saldo tidak cukup",
@@ -318,6 +427,7 @@ router.post("/admin/user/cashWithDrawwal", verifyToken, async (req, res) => {
           );
         }
       } else {
+        console.log("resul ngga ada");
         res.json(
           jsend.fail({
             message: "Invalid Password",
@@ -362,7 +472,15 @@ router.get("/admin/user", verifyToken, async (req, res) => {
 
   try {
     const DataUser = await User.findAll({
-      attributes: ["id", "nama", "email", "divisi", "role", "createdAt"],
+      attributes: [
+        "id",
+        "nama",
+        "email",
+        "divisi",
+        "role",
+        "isVerified",
+        "createdAt",
+      ],
       limit: parseInt(limit),
       offset: parseInt(offset),
       order:
@@ -385,24 +503,6 @@ router.get("/admin/user", verifyToken, async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-  }
-});
-
-router.post("/admin/user/create", verifyToken, async (req, res) => {
-  const { nama, email, divisi, role } = req.body;
-  const createUser = await User.create({
-    nama: nama,
-    email: email,
-    divisi: divisi,
-    role: role,
-  });
-
-  if (createUser) {
-    res.status(200).json(
-      jsend.success({
-        message: "successfully added new user",
-      })
-    );
   }
 });
 

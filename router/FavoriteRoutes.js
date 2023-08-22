@@ -15,15 +15,11 @@ router.post("/favorite", async (req, res) => {
 
   try {
     const user = await User.findOne({ where: { email } });
-    console.log(user);
     if (user) {
       const ifHasDataFavorite = await Favorite.findOne({
         where: { id_user: user.id, id_menu: id_menu },
       });
       if (ifHasDataFavorite == null) {
-        console.log("====================================");
-        console.log("ADA PENAMBAHAN");
-        console.log("====================================");
         await Favorite.create({
           id_user: user.id,
           id_menu: id_menu,
@@ -88,9 +84,6 @@ router.get("/favorite", verifyToken, async (req, res) => {
     });
 
     if (menuItems) {
-      console.log("====================================");
-      console.log("ADA YA DATANYA");
-      console.log("====================================");
       res.json(
         jsend.success({
           message: "berhasil mendapatkan data favorite",

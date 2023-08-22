@@ -20,6 +20,10 @@ const User = db.define(
     saldo: { type: DataTypes.INTEGER },
     password: { type: DataTypes.STRING },
     role: { type: DataTypes.STRING },
+    isVerified: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
   },
   {
     freezeTableName: true,
