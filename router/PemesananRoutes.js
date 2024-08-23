@@ -71,10 +71,6 @@ router.get("/all-order-menu", verifyToken, async (req, res) => {
       include: [
         {
           model: User,
-          // order:
-          //   sortBy == "nama"
-          //     ? [[Sequelize.literal(`${sortBy} ${sortType || ""}`)]]
-          //     : "",
           attributes: ["nama"],
           where: whereConditionsNama,
           order: sortBy == "nama" ? [["nama", sortType]] : [],
